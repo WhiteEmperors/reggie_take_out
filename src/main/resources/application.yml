@@ -1,0 +1,24 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: reggie_take_out #应用名称 , 可选
+  datasource:
+    druid:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/reggie?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+      username: root
+      password: 666666
+mybatis-plus:
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID  #雪花算法
+  #global-config：这是一个全局配置对象，它包含一些配置信息。db-config：这是一个数据库配置对象，它包含一些数据库相关的参数。
+  #id-type：这是一个id类型参数，它用于指定数据库表中字段的id类型，这里的值是ASSIGN_ID，表示该字段的id类型是自动分配的。
+
+reggie:
+  path: D:\img\
