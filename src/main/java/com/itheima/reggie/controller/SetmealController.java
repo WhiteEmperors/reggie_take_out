@@ -13,6 +13,9 @@ import com.itheima.reggie.service.SetmealService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,18 +35,23 @@ public class SetmealController {
     @Autowired
     private CategoryService categoryService;
 
+    @Autowired
+    private CacheManager cacheManager;
+
 
     /**
-     *  保存套餐
-     *  这段代码是一个基于SpringMVC开发的Controller处理POST请求的注解方法。
-     *  它使用@PostMapping注解标注，表示处理HTTP POST请求。该方法通过使用@RequestBody注解来接收请求体中的JSON数据并将其转换为SetmealDto对象。
-     *  SetmealDto包含有保存套餐相关信息的属性，例如名称、描述、价格等。
-     *  最后，该方法返回一个R对象，该对象包含一个String类型的message属性，表示请求处理的结果消息。
+     * 新增套餐
+     * 这段代码是一个基于SpringMVC开发的Controller处理POST请求的注解方法。
+     * 它使用@PostMapping注解标注，表示处理HTTP POST请求。该方法通过使用@RequestBody注解来接收请求体中的JSON数据并将其转换为SetmealDto对象。
+     * SetmealDto包含有保存套餐相关信息的属性，例如名称、描述、价格等。
+     * 最后，该方法返回一个R对象，该对象包含一个String类型的message属性，表示请求处理的结果消息。
+     *
      * @param setmealDto
      * @return
      */
     @PostMapping
-    public R<String> save(@RequestBody SetmealDto setmealDto){
+    @CacheEvict(value = "setmealCache", allEntries = true)//清除setmealCache名称下，所有的缓存
+    public R<String> save(@RequestBody SetmealDto setmealDto) {
         /**
          * 这段代码使用了log4j2的日志输出功能，将一个包含套餐信息的DTO对象输出到日志中。
          * 具体解释如下：
@@ -53,31 +61,32 @@ public class SetmealController {
          *      - ,setmealDto：是需要插入到日志格式字符串中的参数，即一个包含套餐信息的DTO对象。
          *  综合起来，这段代码的作用是将一个包含套餐信息的DTO对象以指定的格式输出到日志中，便于开发者在调试和排查问题时查看相关信息
          */
-        log.info("套餐信息：{}",setmealDto);
+        log.info("套餐信息：{}", setmealDto);
         setmealService.saveWithDish(setmealDto);
         return R.success("新增套餐成功");
     }
 
     /**
      * 套餐分页查询
+     *
      * @param page
      * @param pageSize
      * @param name
      * @return
      */
     @GetMapping("/page")
-    public R<Page> page(int page,int pageSize,String name){
+    public R<Page> page(int page, int pageSize, String name) {
         //分页构造器对象
-        Page<Setmeal> pageInfo = new Page<>(page,pageSize);
+        Page<Setmeal> pageInfo = new Page<>(page, pageSize);
         Page<SetmealDto> dtoPage = new Page<>();
 
         LambdaQueryWrapper<Setmeal> queryWrapper = new LambdaQueryWrapper<>();
         //添加查询条件，根据name进行like模糊查询
-        queryWrapper.like(name != null,Setmeal::getName,name);
+        queryWrapper.like(name != null, Setmeal::getName, name);
         //添加排序条件，根据更新时间降序排列
         queryWrapper.orderByDesc(Setmeal::getUpdateTime);
 
-        setmealService.page(pageInfo,queryWrapper);
+        setmealService.page(pageInfo, queryWrapper);
 
         //5. 对象拷贝  将pageInfo中的数据拷贝到dtoPage中， records属性被忽略
         /**
@@ -88,7 +97,7 @@ public class SetmealController {
          * 第一个参数指定源对象，第二个参数指定目标对象，第三个参数是要忽略复制的属性列表。
          * 在这个例子中，我们指定了“records”属性作为忽略属性。这意味着在复制完成后，目标对象中将不会有“records”属性。
          */
-        BeanUtils.copyProperties(pageInfo,dtoPage,"records");
+        BeanUtils.copyProperties(pageInfo, dtoPage, "records");
         /**
          * 对pageInfo.getRecords()解析
          * 这段代码的含义是，从一个分页信息对象 pageInfo 中获取当前页面的数据记录列表，将其赋值给一个类型为 Setmeal 的列表 records。
@@ -104,12 +113,12 @@ public class SetmealController {
         List<SetmealDto> list = records.stream().map((item) -> {
             SetmealDto setmealDto = new SetmealDto();
             //对象拷贝
-            BeanUtils.copyProperties(item,setmealDto);
+            BeanUtils.copyProperties(item, setmealDto);
             //分类id
             Long categoryId = item.getCategoryId();
             //根据分类id查询分类对象
             Category category = categoryService.getById(categoryId);
-            if(category != null){
+            if (category != null) {
                 //分类名称
                 String categoryName = category.getName();
                 setmealDto.setCategoryName(categoryName);
@@ -122,26 +131,30 @@ public class SetmealController {
 
     /**
      * 删除套餐
+     *
      * @param ids
      * @return
      */
     @DeleteMapping
-    public R<String> delete(@RequestParam List<Long> ids){
-        log.info("ids:{}",ids);
+    @CacheEvict(value = "setmealCache", allEntries = true)//清除setmealCache名称下，所有的缓存
+    public R<String> delete(@RequestParam List<Long> ids) {
+        log.info("ids:{}", ids);
         setmealService.removeWithDish(ids);
         return R.success("套餐数据删除成功");
     }
 
     /**
      * 根据条件查询套餐数据
+     *
      * @param setmeal
      * @return
      */
     @GetMapping("/list")
-    public R<List<Setmeal>> list(Setmeal setmeal){
+    @Cacheable(value = "setmealCache", key = "#setmeal.categoryId+ '_' + #setmeal.status")
+    public R<List<Setmeal>> list(Setmeal setmeal) {
         LambdaQueryWrapper<Setmeal> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(setmeal.getCategoryId() != null,Setmeal::getCategoryId,setmeal.getCategoryId());
-        queryWrapper.eq(setmeal.getStatus() != null,Setmeal::getStatus,setmeal.getStatus());
+        queryWrapper.eq(setmeal.getCategoryId() != null, Setmeal::getCategoryId, setmeal.getCategoryId());
+        queryWrapper.eq(setmeal.getStatus() != null, Setmeal::getStatus, setmeal.getStatus());
         queryWrapper.orderByDesc(Setmeal::getUpdateTime);
 
         List<Setmeal> list = setmealService.list(queryWrapper);
