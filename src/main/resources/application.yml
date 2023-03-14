@@ -62,7 +62,8 @@ mybatis-plus:
   #id-type：这是一个id类型参数，它用于指定数据库表中字段的id类型，这里的值是ASSIGN_ID，表示该字段的id类型是自动分配的。
 
 reggie:
-  path: D:\img\
+  # path: D:\img\
+  path: /usr/local/img/
 #  datasource:
 #    druid:
 #      driver-class-name: com.mysql.cj.jdbc.Driver
